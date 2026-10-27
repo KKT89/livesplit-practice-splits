@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiveSplit 区間練習用スプリット</title>
+  <style>
+    :root { color-scheme: light; font-family: "Yu Gothic UI", "Meiryo", system-ui, sans-serif; color: #17243a; background: #f3f6fa; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1000px; margin: 0 auto; padding: 34px 24px 48px; }
+    h1 { margin: 0 0 7px; font-size: 27px; letter-spacing: .02em; }
+    .lead { margin: 0 0 25px; color: #5f6d80; font-size: 14px; }
+    .panel { background: #fff; border: 1px solid #e1e7ef; border-radius: 14px; box-shadow: 0 5px 22px #20354d0a; }
+    .source { padding: 20px 22px; display: flex; align-items: center; gap: 18px; }
+    .source-copy { min-width: 0; flex: 1; }
+    .eyebrow { display: block; margin-bottom: 5px; color: #66778c; font-size: 12px; font-weight: 700; }
+    .filename { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 15px; font-weight: 650; }
+    button, .file-button { font: inherit; cursor: pointer; }
+    .file-button, .primary { border: 0; border-radius: 9px; background: #2667b5; color: #fff; font-weight: 700; padding: 11px 18px; white-space: nowrap; }
+    .file-button:hover, .primary:hover:not(:disabled) { background: #1b569e; }
+    .file-button:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #93c2ff; outline-offset: 2px; }
+    .primary:disabled { opacity: .46; cursor: not-allowed; }
+    .pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .picker { padding: 18px; min-width: 0; }
+    .picker h2, .preview h2 { margin: 0 0 5px; font-size: 16px; }
+    .selection { margin: 0 0 12px; color: #2463ab; font-weight: 700; min-height: 24px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .search { width: 100%; border: 1px solid #cbd6e4; border-radius: 8px; padding: 9px 11px; font: inherit; font-size: 14px; }
+    .options { margin-top: 10px; border: 1px solid #dfe6ef; border-radius: 9px; height: 220px; overflow-y: auto; background: #fff; }
+    .option { display: block; width: 100%; border: 0; border-bottom: 1px solid #edf1f6; padding: 8px 11px; text-align: left; background: #fff; color: #24354d; }
+    .option:last-child { border-bottom: 0; }
+    .option:hover { background: #f1f6fc; }
+    .option[aria-selected="true"] { background: #e1efff; color: #174d91; font-weight: 750; }
+    .empty { padding: 18px 12px; color: #7a8798; text-align: center; font-size: 14px; }
+    .preview { margin-top: 18px; overflow: hidden; }
+    .preview-heading { padding: 18px 20px 12px; display: flex; gap: 10px; align-items: baseline; }
+    .preview-heading h2 { margin: 0; }
+    .preview-heading span { color: #66778c; font-size: 13px; }
+    .table-wrap { max-height: 285px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead { position: sticky; top: 0; z-index: 1; background: #f7f9fc; }
+    th, td { padding: 9px 15px; border-top: 1px solid #e9eef4; text-align: left; font-size: 14px; }
+    th { color: #52657a; font-size: 12px; }
+    th:first-child, td:first-child { width: 76px; }
+    th:last-child, td:last-child { width: 230px; font-variant-numeric: tabular-nums; }
+    tbody tr:first-child { background: #f7fbff; }
+    .actions { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+    .status { color: #52657a; font-size: 14px; line-height: 1.5; }
+    .status.error { color: #bd3544; }
+    @media (max-width: 680px) {
+      main { padding: 20px 14px 36px; }
+      h1 { font-size: 22px; }
+      .source { align-items: stretch; flex-direction: column; }
+      .pickers { grid-template-columns: 1fr; }
+      .options { height: 160px; }
+      th:last-child, td:last-child { width: 155px; }
+      .actions { align-items: stretch; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>区間練習用スプリットを作成</h1>
+    <p class="lead">元のスプリットファイルから、練習する区間を選びます。</p>
+
+    <section class="panel source" aria-label="元ファイル">
+      <div class="source-copy">
+        <span class="eyebrow">元のスプリットファイル</span>
+        <span id="filename" class="filename">ファイルを選択してください</span>
+      </div>
+      <input id="file-input" type="file" accept=".lss" hidden>
+      <label for="file-input" class="file-button" role="button" tabindex="0">ファイルを選ぶ</label>
+    </section>
+
+    <div class="pickers">
+      <section class="panel picker" aria-labelledby="start-title">
+        <h2 id="start-title">開始区間</h2>
+        <p id="start-selection" class="selection">未選択</p>
+        <input id="start-search" class="search" type="search" placeholder="名前・番号で検索" aria-label="開始区間を検索">
+        <div id="start-options" class="options" role="listbox" aria-label="開始区間"></div>
+      </section>
+      <section class="panel picker" aria-labelledby="end-title">
+        <h2 id="end-title">終了区間</h2>
+        <p id="end-selection" class="selection">未選択</p>
+        <input id="end-search" class="search" type="search" placeholder="名前・番号で検索" aria-label="終了区間を検索">
+        <div id="end-options" class="options" role="listbox" aria-label="終了区間"></div>
+      </section>
+    </div>
+
+    <section class="panel preview" aria-labelledby="preview-title">
+      <div class="preview-heading"><h2 id="preview-title">保存する区間</h2><span id="range-summary"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>No.</th><th>区間名</th><th>BEST</th></tr></thead>
+          <tbody id="preview-body"><tr><td colspan="3" class="empty">ファイルを選ぶと表示されます</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="actions">
+      <div id="status" class="status" role="status" aria-live="polite">先頭区間の BEST は空欄になります。</div>
+      <button id="save-button" class="primary" type="button" disabled>区間練習用ファイルを保存</button>
+    </div>
+  </main>
+
+  <script id="converter">
+    "use strict";
+
+    function child(parent, name) {
+      return Array.from(parent.children).find(element => element.localName === name) ?? null;
+    }
+
+    function children(parent, name) {
+      return Array.from(parent.children).filter(element => element.localName === name);
+    }
+
+    function requireRun(document) {
+      const run = document.documentElement;
+      if (!run || run.localName !== "Run" || document.getElementsByTagName("parsererror").length) {
+        throw new Error("LiveSplit のスプリットファイルを読み込めません。");
+      }
+      const segments = child(run, "Segments");
+      if (!segments || !children(segments, "Segment").length) {
+        throw new Error("区間が見つかりません。");
+      }
+      return { run, segments: children(segments, "Segment") };
+    }
+
+    function segmentName(segment, index) {
+      return child(segment, "Name")?.textContent || `区間 ${index + 1}`;
+    }
+
+    function bestRealTime(segment) {
+      const best = child(segment, "BestSegmentTime");
+      return best ? child(best, "RealTime")?.textContent?.trim() || "" : "";
+    }
+
+    function ensureChild(document, parent, name) {
+      let element = child(parent, name);
+      if (!element) {
+        element = document.createElementNS(parent.namespaceURI, name);
+        parent.appendChild(element);
+      }
+      return element;
+    }
+
+    function clearChildren(element) {
+      while (element.firstChild) element.removeChild(element.firstChild);
+    }
+
+    function createPracticeDocument(sourceDocument, start, end) {
+      const { segments: original } = requireRun(sourceDocument);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end >= original.length) {
+        throw new Error("開始区間と終了区間を確認してください。");
+      }
+      const output = sourceDocument.cloneNode(true);
+      const run = output.documentElement;
+      const container = child(run, "Segments");
+      clearChildren(container);
+      for (let i = start; i <= end; i++) {
+        const segment = original[i].cloneNode(true);
+        const splitTimes = ensureChild(output, segment, "SplitTimes");
+        clearChildren(splitTimes);
+        const personalBest = output.createElementNS(segment.namespaceURI, "SplitTime");
+        personalBest.setAttribute("name", "Personal Best");
+        splitTimes.appendChild(personalBest);
+        clearChildren(ensureChild(output, segment, "SegmentHistory"));
+        if (i === start) clearChildren(ensureChild(output, segment, "BestSegmentTime"));
+        container.appendChild(segment);
+      }
+      ensureChild(output, run, "Offset").textContent = "00:00:00";
+      ensureChild(output, run, "AttemptCount").textContent = "0";
+      clearChildren(ensureChild(output, run, "AttemptHistory"));
+      const metadata = child(run, "Metadata");
+      const runMetadata = metadata && child(metadata, "Run");
+      if (runMetadata?.hasAttribute("id")) runMetadata.setAttribute("id", "");
+      const customComparisons = child(run, "CustomComparisons");
+      if (customComparisons) clearChildren(customComparisons);
+      return output;
+    }
+  </script>
+
+  <script>
+    "use strict";
+    const $ = id => document.getElementById(id);
+    const state = { source: null, file: null, segments: [], start: 0, end: 0 };
+    const fileInput = $("file-input");
+
+    function setStatus(message, error = false) {
+      const status = $("status");
+      status.textContent = message;
+      status.classList.toggle("error", error);
+    }
+
+    function label(index) {
+      return `${String(index + 1).padStart(3, "0")}  ${segmentName(state.segments[index], index)}`;
+    }
+
+    function renderOptions(which) {
+      const container = $(`${which}-options`);
+      const query = $(`${which}-search`).value.trim().toLocaleLowerCase();
+      const selected = state[which];
+      const minimum = which === "end" ? state.start : 0;
+      container.replaceChildren();
+      if (!state.source) return;
+      let count = 0;
+      for (let i = minimum; i < state.segments.length; i++) {
+        const name = label(i);
+        if (!name.toLocaleLowerCase().includes(query)) continue;
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "option";
+        item.setAttribute("role", "option");
+        item.setAttribute("aria-selected", String(i === selected));
+        item.textContent = name;
+        item.addEventListener("click", () => selectSegment(which, i));
+        container.appendChild(item);
+        count++;
+      }
+      if (!count) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "該当する区間がありません";
+        container.appendChild(empty);
+      }
+      $(`${which}-selection`).textContent = label(selected);
+    }
+
+    function selectSegment(which, index) {
+      state[which] = index;
+      if (which === "start" && state.end < index) {
+        state.end = index;
+        $("end-search").value = "";
+      }
+      renderOptions("start");
+      renderOptions("end");
+      renderPreview();
+    }
+
+    function renderPreview() {
+      const body = $("preview-body");
+      body.replaceChildren();
+      if (!state.source) return;
+      for (let i = state.start; i <= state.end; i++) {
+        const row = document.createElement("tr");
+        const values = [String(i + 1), segmentName(state.segments[i], i), i === state.start ? "" : bestRealTime(state.segments[i])];
+        for (const value of values) {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        body.appendChild(row);
+      }
+      const count = state.end - state.start + 1;
+      $("range-summary").textContent = `${count} 区間`;
+      setStatus(`${count} 区間を保存します。先頭区間の BEST は空欄になります。`);
+      $("save-button").disabled = false;
+    }
+
+    fileInput.addEventListener("click", () => { fileInput.value = ""; });
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      state.source = null;
+      state.file = null;
+      state.segments = [];
+      $("save-button").disabled = true;
+      $("filename").textContent = "ファイルを選択してください";
+      $("start-selection").textContent = "未選択";
+      $("end-selection").textContent = "未選択";
+      $("start-options").replaceChildren();
+      $("end-options").replaceChildren();
+      $("range-summary").textContent = "";
+      $("preview-body").replaceChildren();
+      try {
+        const text = await file.text();
+        const source = new DOMParser().parseFromString(text, "application/xml");
+        const { segments } = requireRun(source);
+        state.source = source;
+        state.file = file;
+        state.segments = segments;
+        state.start = 0;
+        state.end = segments.length - 1;
+        $("filename").textContent = file.name;
+        $("filename").title = file.name;
+        $("start-search").value = "";
+        $("end-search").value = "";
+        renderOptions("start");
+        renderOptions("end");
+        renderPreview();
+      } catch (error) {
+        setStatus(error.message || "ファイルを読み込めませんでした。", true);
+      }
+    });
+
+    for (const which of ["start", "end"]) {
+      $(`${which}-search`).addEventListener("input", () => renderOptions(which));
+    }
+    document.querySelector(".file-button").addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    function suggestedName() {
+      const stem = state.file.name.replace(/\.lss$/i, "");
+      const first = String(state.start + 1).padStart(3, "0");
+      const last = String(state.end + 1).padStart(3, "0");
+      return `${stem}_practice_${first}-${last}.lss`;
+    }
+
+    function download(xml, name) {
+      const url = URL.createObjectURL(new Blob([xml], { type: "application/xml;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setStatus("ブラウザのダウンロードに保存しました。");
+    }
+
+    $("save-button").addEventListener("click", async () => {
+      if (!state.source) return;
+      try {
+        const output = createPracticeDocument(state.source, state.start, state.end);
+        const serialized = new XMLSerializer().serializeToString(output);
+        const xml = serialized.startsWith("<?xml") ? serialized : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
+        const name = suggestedName();
+        if (typeof window.showSaveFilePicker === "function") {
+          let handle;
+          try {
+            handle = await window.showSaveFilePicker({
+              suggestedName: name,
+              types: [{ description: "LiveSplit スプリットファイル", accept: { "application/xml": [".lss"] } }],
+            });
+          } catch (error) {
+            if (error.name === "AbortError") return;
+            download(xml, name);
+            return;
+          }
+          if (handle.name.toLocaleLowerCase() === state.file.name.toLocaleLowerCase()) {
+            setStatus("元のファイルと同名では保存できません。", true);
+            return;
+          }
+          const writable = await handle.createWritable();
+          await writable.write(xml);
+          await writable.close();
+          setStatus(`保存しました: ${handle.name}`);
+        } else {
+          download(xml, name);
+        }
+      } catch (error) {
+        setStatus(error.message || "保存に失敗しました。", true);
+      }
+    });
+
+    function checkBrowserXmlSupport() {
+      const sample = new DOMParser().parseFromString(
+        '<Run><Offset>00:00:05</Offset><AttemptCount>2</AttemptCount><AttemptHistory><Attempt /></AttemptHistory><Segments>' +
+        '<Segment><Name>A</Name><BestSegmentTime><RealTime>00:00:01</RealTime></BestSegmentTime></Segment>' +
+        '<Segment><Name>B</Name><BestSegmentTime><RealTime>00:00:02</RealTime></BestSegmentTime></Segment>' +
+        '</Segments></Run>', "application/xml"
+      );
+      const output = createPracticeDocument(sample, 0, 1);
+      const reparsed = new DOMParser().parseFromString(new XMLSerializer().serializeToString(output), "application/xml");
+      const { run, segments } = requireRun(reparsed);
+      if (child(run, "Offset")?.textContent !== "00:00:00" ||
+          child(run, "AttemptCount")?.textContent !== "0" ||
+          child(child(segments[0], "BestSegmentTime"), "RealTime") ||
+          bestRealTime(segments[1]) !== "00:00:02") {
+        throw new Error("XML 変換の確認に失敗しました。");
+      }
+    }
+
+    try {
+      checkBrowserXmlSupport();
+    } catch (_error) {
+      fileInput.disabled = true;
+      setStatus("このブラウザでは変換を確認できません。別のブラウザで開いてください。", true);
+    }
+  </script>
+</body>
+</html>
